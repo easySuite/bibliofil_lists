@@ -1,0 +1,5 @@
+name = "Bibliofil Lists"
+description = "Provide Bibliofil lists in carousel."
+package = Bibliofil
+core = 7.x
+configure = admin/config/bibliofil/bibliofil_lists

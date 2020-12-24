@@ -1,0 +1,89 @@
+<?php
+
+/**
+ * @file
+ * Bibliofil lists module.
+ */
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function bibliofil_lists_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools' || $owner == 'panels') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function bibliofil_lists_menu() {
+  $items = [];
+
+  $items['admin/config/bibliofil'] = [
+    'title' => 'Bibliofil',
+    'description' => 'Bibliofil specific settings',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => ['access administration pages'],
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  ];
+
+  $items['admin/config/bibliofil/bibliofil_lists'] = [
+    'title' => 'Bibliofil lists',
+    'description' => 'Bibliofil lists specific settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['bibliofil_lists_admin_settings_form'],
+    'file' => 'bibliofil_lists.admin.inc',
+    'access arguments' => ['access administration pages'],
+  ];
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function bibliofil_lists_theme($existing, $type, $theme, $path) {
+  return [
+    'bibliofil_lists_item' => [
+      'variables' => [
+        'type' => NULL,
+        'opac_url' => NULL,
+        'data' => NULL,
+      ],
+      'template' => 'templates/bibliofil_lists_item',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function bibliofil_lists_preprocess_bibliofil_lists_item(&$variables) {
+  $data = $variables['data'];
+
+  if (empty($data)) {
+    return;
+  }
+
+  switch ($variables['type']) {
+    case 'librarylists':
+      $unify_data = [
+        'id' => $data['tnr'],
+        'cover_src' => $data['bilde'],
+        'title' => $data['tittel'],
+      ];
+      $variables['data'] = $unify_data;
+      break;
+
+    default:
+      $unify_data = [
+        'id' => $data['tnr'],
+        'cover_src' => $data['b'],
+        'title' => $data['t'],
+      ];
+      $variables['data'] = $unify_data;
+      break;
+  }
+}
