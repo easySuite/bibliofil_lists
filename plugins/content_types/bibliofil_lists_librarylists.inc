@@ -24,52 +24,24 @@ $plugin = [
  * @throws \Exception
  */
 function bibliofil_lists_librarylists_render($subtype, $conf, $panel_args, $context) {
-  $carousel = [];
-  $block = new stdClass();
-  $block->title = t('Bibliofil list');
-
-  $opac_url = variable_get('bibliofil_lists_opac_url', '');
-
-  $path = '/cgi-bin/rest_service/web_lister/1.0/data/';
-
-  $query_params = [
-    'mode' => 'show',
-    'json' => 1,
-    'showlibrarylist' => 1,
-    'showpatronlist' => 1,
-    'random' => $conf['random'],
-    'instans' => $conf['instans'],
+  $carousel_wrapper = [
+    '#type' => 'container',
+    '#attributes' => [
+      'id' => 'bibliofil-lists',
+      'data-bibliofil-lists-type' => 'librarylists',
+      'data-bibliofil-lists-hash' => drupal_base64_encode(implode(':', $conf)),
+    ],
+    '#attached' => [
+      'js' => [
+        drupal_get_path('module', 'bibliofil_lists') . '/js/bibliofil_lists.js',
+        drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js',
+      ],
+    ],
   ];
 
-  $url = url($opac_url . $path, ['query' => $query_params]);
-
-  $result = drupal_http_request($url);
-
-  if ($result->code != 200) {
-    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
-  }
-
-  $data = drupal_json_decode($result->data);
-  if (!empty($data['selectedlibrarylist'])) {
-    $carousel = [
-      '#theme' => 'ding_carousel',
-      '#attached' => [
-        'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
-      ],
-    ];
-
-    foreach ($data['selectedlibrarylist']['innhold'] as $datum) {
-      $carousel['#items'][] = [
-        '#markup' => theme('bibliofil_lists_item', [
-          'type' => 'librarylists',
-          'opac_url' => $opac_url,
-          'data' => $datum,
-        ]),
-      ];
-    }
-  }
-
-  $block->content = $carousel;
+  $block = new stdClass();
+  $block->title = t('Bibliofil list');
+  $block->content = $carousel_wrapper;
 
   return $block;
 }

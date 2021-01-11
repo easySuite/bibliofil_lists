@@ -5,6 +5,9 @@
  * Bibliofil lists module.
  */
 
+define('DYNPATH', '/cgi-bin/m2dyn.htmc');
+define('WEBLISTERPATH', '/cgi-bin/rest_service/web_lister/1.0/data/');
+
 /**
  * Implements hook_ctools_plugin_directory().
  */
@@ -38,7 +41,208 @@ function bibliofil_lists_menu() {
     'access arguments' => ['access administration pages'],
   ];
 
+  $items['bibliofil/%/%'] = [
+    'type' => MENU_CALLBACK,
+    'page callback' => 'bibliofil_lists_ajax_callback',
+    'page arguments' => [1, 2],
+    'access arguments' => ['access content'],
+    'theme callback' => 'ajax_base_page_theme',
+    'delivery callback' => 'ajax_deliver',
+  ];
+
   return $items;
+}
+
+/**
+ * @param $hash
+ * @param $type
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_ajax_callback($hash, $type) {
+  if (empty($hash) || empty($type)) {
+    return;
+  }
+
+  if ($type == 'librarylists') {
+    $element = bibliofil_lists_build_librarylists($hash);
+  }
+
+  if ($type == 'suggestions') {
+    $element = bibliofil_lists_build_suggestions($hash);
+  }
+
+  echo render($element);
+  drupal_exit();
+}
+
+/**
+ * Request and build suggestions carousel.
+ *
+ * @param string $hash
+ *   Request hash.
+ *
+ * @return array|null
+ *   Renderable array or empty result.
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_build_suggestions($hash) {
+  $opac_url = variable_get('bibliofil_lists_opac_url', '');
+
+  $decoded = base64_decode($hash);
+  $explode = explode(':', $decoded);
+
+  $conf_toplister = $explode[0];
+  $conf_ants = $explode[1];
+  $conf_ante = $explode[2];
+  $conf_instans = $explode[3];
+  $conf_list_type = $explode[4];
+
+  $query_params = [
+    'mode' => 'hentupforslag',
+    'json' => 1,
+    'toplister' => $conf_toplister,
+    'ants' => $conf_ants,
+    'ante' => $conf_ante,
+    'instans' => $conf_instans,
+  ];
+
+  $url = url($opac_url . DYNPATH, ['query' => $query_params]);
+
+  $result = drupal_http_request($url);
+
+  if ($result->code != 200) {
+    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
+  }
+
+  $data = drupal_json_decode($result->data);
+
+  $tabs = [];
+  if (!empty($conf_list_type)) {
+    if (!empty($data[$conf_list_type])) {
+      foreach ($data[$conf_list_type] as $key => $item) {
+        $tabs[$key]['#title'] = $item['name'];
+        $tabs[$key]['#theme'] = 'ding_carousel';
+        $tabs[$key]['#placeholders'] = '';
+        $tabs[$key]['#offset'] = 0;
+        $tabs[$key]['#path'] = '#';
+
+        foreach ($item['titler'] as $k => $i) {
+          $tabs[$key]['#items'][] = [
+            '#markup' => theme('bibliofil_lists_item', [
+              'type' => 'suggestions',
+              'opac_url' => $opac_url,
+              'data' => $i,
+            ]),
+          ];
+        }
+      }
+    }
+  }
+  else {
+    $nonempty = array_filter($data, function ($category) {
+      if (is_array($category)) {
+        return $category;
+      }
+    });
+
+    $inlined = [];
+    foreach ($nonempty as $type) {
+      foreach ($type as $t) {
+        $inlined[] = $t;
+      }
+    }
+
+    foreach ($inlined as $key => $tabgen) {
+      $tabs[$key]['#title'] = $tabgen['name'];
+      $tabs[$key]['#theme'] = 'ding_carousel';
+      $tabs[$key]['#placeholders'] = '';
+      $tabs[$key]['#offset'] = 0;
+      $tabs[$key]['#path'] = '#';
+
+      foreach ($tabgen['titler'] as $k => $i) {
+        $tabs[$key]['#items'][] = [
+          '#markup' => theme('bibliofil_lists_item', [
+            'type' => 'suggestions',
+            'opac_url' => $opac_url,
+            'data' => $i,
+          ]),
+        ];
+      }
+    }
+  }
+
+  if (!empty($tabs)) {
+    return $element = [
+      '#theme' => 'ding_tabbed_carousel',
+      '#transition' => 'fade',
+      '#tabs' => $tabs,
+      '#attached' => [
+        'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
+      ],
+    ];
+  }
+}
+
+/**
+ * Request and build library lists carousel.
+ *
+ * @param string $hash
+ *   Request hash.
+ *
+ * @return array|null
+ *   Renderable array if data and empty array if no data.
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_build_librarylists($hash) {
+  $element = [];
+  $opac_url = variable_get('bibliofil_lists_opac_url', '');
+
+  $decoded = base64_decode($hash);
+  $explode = explode(':', $decoded);
+  $conf_random = $explode[0];
+  $conf_instans = $explode[1];
+
+  $query_params = [
+    'mode' => 'show',
+    'json' => 1,
+    'showlibrarylist' => 1,
+    'showpatronlist' => 1,
+    'random' => $conf_random,
+    'instans' => $conf_instans,
+  ];
+
+  $url = url($opac_url . WEBLISTERPATH, ['query' => $query_params]);
+
+  $result = drupal_http_request($url);
+
+  if ($result->code != 200) {
+    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
+  }
+
+  $data = drupal_json_decode($result->data);
+  if (!empty($data['selectedlibrarylist'])) {
+    $element = [
+      '#theme' => 'ding_carousel',
+      '#attached' => [
+        'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
+      ],
+    ];
+
+    foreach ($data['selectedlibrarylist']['innhold'] as $datum) {
+      $element['#items'][] = [
+        '#markup' => theme('bibliofil_lists_item', [
+          'type' => 'librarylists',
+          'opac_url' => $opac_url,
+          'data' => $datum,
+        ]),
+      ];
+    }
+  }
+
+  return $element;
 }
 
 /**

@@ -26,97 +26,24 @@ $plugin = [
  * @throws \Exception
  */
 function bibliofil_lists_suggestions_render($subtype, $conf, $panel_args, $context) {
-  $block = new stdClass();
-  $block->title = t('Bibliofil list');
-
-  $opac_url = variable_get('bibliofil_lists_opac_url', '');
-
-  $path = '/cgi-bin/m2dyn.htmc';
-
-  $query_params = [
-    'mode' => 'hentupforslag',
-    'json' => 1,
-    'toplister' => $conf['toplister'],
-    'ants' => $conf['ants'],
-    'ante' => $conf['ante'],
-    'instans' => $conf['instans'],
-  ];
-
-  $url = url($opac_url . $path, ['query' => $query_params]);
-
-  $result = drupal_http_request($url);
-
-  if ($result->code != 200) {
-    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
-  }
-
-  $data = drupal_json_decode($result->data);
-
-  $tabs = [];
-  if (!empty($conf['list_type'])) {
-    if (!empty($data[$conf['list_type']])) {
-      foreach ($data[$conf['list_type']] as $key => $item) {
-        $tabs[$key]['#title'] = $item['name'];
-        $tabs[$key]['#theme'] = 'ding_carousel';
-        $tabs[$key]['#placeholders'] = '';
-        $tabs[$key]['#offset'] = 0;
-        $tabs[$key]['#path'] = '';
-
-        foreach ($item['titler'] as $k => $i) {
-          $tabs[$key]['#items'][] = [
-            '#markup' => theme('bibliofil_lists_item', [
-              'type' => 'suggestions',
-              'opac_url' => $opac_url,
-              'data' => $i,
-            ]),
-          ];
-        }
-      }
-    }
-  }
-  else {
-    $nonempty = array_filter($data, function ($category) {
-      if (is_array($category)) {
-        return $category;
-      }
-    });
-
-    $inlined = [];
-    foreach ($nonempty as $type) {
-      foreach ($type as $t) {
-        $inlined[] = $t;
-      }
-    }
-
-    foreach ($inlined as $key => $tabgen) {
-      $tabs[$key]['#title'] = $tabgen['name'];
-      $tabs[$key]['#theme'] = 'ding_carousel';
-      $tabs[$key]['#placeholders'] = '';
-      $tabs[$key]['#offset'] = 0;
-      $tabs[$key]['#path'] = NULL;
-
-      foreach ($tabgen['titler'] as $k => $i) {
-        $tabs[$key]['#items'][] = [
-          '#markup' => theme('bibliofil_lists_item', [
-            'type' => 'suggestions',
-            'opac_url' => $opac_url,
-            'data' => $i,
-          ]),
-        ];
-      }
-    }
-  }
-
-  $element = [
-    '#theme' => 'ding_tabbed_carousel',
-    '#transition' => 'fade',
-    '#tabs' => $tabs,
+  $carousel_wrapper = [
+    '#type' => 'container',
+    '#attributes' => [
+      'id' => 'bibliofil-lists',
+      'data-bibliofil-lists-type' => 'suggestions',
+      'data-bibliofil-lists-hash' => drupal_base64_encode(implode(':', $conf)),
+    ],
     '#attached' => [
-      'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
+      'js' => [
+        drupal_get_path('module', 'bibliofil_lists') . '/js/bibliofil_lists.js',
+        drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js',
+      ],
     ],
   ];
 
-  $block->content = $element;
+  $block = new stdClass();
+  $block->title = t('Bibliofil list');
+  $block->content = $carousel_wrapper;
 
   return $block;
 }
@@ -167,7 +94,7 @@ function bibliofil_lists_suggestions_edit_form($form, $form_state) {
 
   $form['settings']['ante'] = [
     '#type' => 'textfield',
-    '#title' => t('Amount of lists by topics (ants)'),
+    '#title' => t('Amount of lists by topics (ante)'),
     '#description' => t('Represents the amount of lists exposed with topics category.'),
     '#default_value' => $conf['ante'],
   ];
