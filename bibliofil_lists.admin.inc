@@ -22,6 +22,17 @@ function bibliofil_lists_admin_settings_form($form, &$form_state) {
 }
 
 /**
+ * Custom form validation handler.
+ */
+function bibliofil_lists_admin_settings_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+
+  if (!valid_url($values['bibliofil_lists_opac_url'], TRUE)) {
+    form_set_error('bibliofil_lists_opac_url', t('Invalid url.'));
+  }
+}
+
+/**
  * Custom form submit.
  */
 function bibliofil_lists_admin_settings_form_submit($form, &$form_state) {
@@ -29,7 +40,7 @@ function bibliofil_lists_admin_settings_form_submit($form, &$form_state) {
   $opac_url = $form_state['values']['bibliofil_lists_opac_url'];
 
   if (preg_match('/\/$/', $opac_url)) {
-    $cleared_url = preg_replace('/\/$/', '', $opac_url);
+    $cleared_url = trim(rtrim($opac_url, '/'));
     $form_state['values']['bibliofil_lists_opac_url'] = $cleared_url;
   }
 }

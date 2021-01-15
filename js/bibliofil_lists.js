@@ -1,3 +1,7 @@
+/**
+ * @file
+ * Requesting and displaying Bibliofil Lists.
+ */
 (function ($) {
 
   "use strict";
@@ -11,6 +15,8 @@
         var wrapper = list.parents(".pane-bibliofil-lists-" + type).hide();
 
         var url = settings.basePath + settings.pathPrefix + "bibliofil/" + hash + "/" + type;
+
+        // @TODO: Move this to Drupal.ajax.
         $.get(url, {}, function (response) {
             if (response) {
               list.replaceWith(response);
