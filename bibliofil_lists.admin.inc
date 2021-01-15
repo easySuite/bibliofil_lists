@@ -38,9 +38,6 @@ function bibliofil_lists_admin_settings_form_validate($form, &$form_state) {
 function bibliofil_lists_admin_settings_form_submit($form, &$form_state) {
   // Remove trailing slash from the url.
   $opac_url = $form_state['values']['bibliofil_lists_opac_url'];
-
-  if (preg_match('/\/$/', $opac_url)) {
-    $cleared_url = trim(rtrim($opac_url, '/'));
-    $form_state['values']['bibliofil_lists_opac_url'] = $cleared_url;
-  }
+  $cleared_url = trim(rtrim($opac_url, '/'));
+  $form_state['values']['bibliofil_lists_opac_url'] = $cleared_url;
 }

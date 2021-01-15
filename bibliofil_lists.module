@@ -142,16 +142,14 @@ function bibliofil_lists_build_suggestions(string $hash) {
     $tabs = bibliofil_lists_build_tabs($inlined, $opac_url);
   }
 
-  if (!empty($tabs)) {
-    return $element = [
-      '#theme' => 'ding_tabbed_carousel',
-      '#transition' => 'fade',
-      '#tabs' => $tabs,
-      '#attached' => [
-        'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
-      ],
-    ];
-  }
+  return $element = [
+    '#theme' => 'ding_tabbed_carousel',
+    '#transition' => 'fade',
+    '#tabs' => $tabs,
+    '#attached' => [
+      'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
+    ],
+  ];
 }
 
 /**
