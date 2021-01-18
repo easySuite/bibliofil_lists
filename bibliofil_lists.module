@@ -1,0 +1,296 @@
+<?php
+
+/**
+ * @file
+ * Bibliofil lists module.
+ */
+
+define('BIBLIOFIL_LISTS_DYNPATH', '/cgi-bin/m2dyn.htmc');
+define('BIBLIOFIL_LISTS_WEBLISTERPATH', '/cgi-bin/rest_service/web_lister/1.0/data/');
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function bibliofil_lists_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools' || $owner == 'panels') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function bibliofil_lists_menu() {
+  $items = [];
+
+  $items['admin/config/bibliofil'] = [
+    'title' => 'Bibliofil',
+    'description' => 'Bibliofil specific settings',
+    'page callback' => 'system_admin_menu_block_page',
+    'access arguments' => ['administer site configuration'],
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  ];
+
+  $items['admin/config/bibliofil/bibliofil_lists'] = [
+    'title' => 'Bibliofil lists',
+    'description' => 'Bibliofil lists specific settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['bibliofil_lists_admin_settings_form'],
+    'file' => 'bibliofil_lists.admin.inc',
+    'access arguments' => ['administer site configuration'],
+  ];
+
+  $items['bibliofil/%/%'] = [
+    'type' => MENU_CALLBACK,
+    'page callback' => 'bibliofil_lists_ajax_callback',
+    'page arguments' => [1, 2],
+    'access arguments' => ['access content'],
+    'theme callback' => 'ajax_base_page_theme',
+    'delivery callback' => 'ajax_deliver',
+  ];
+
+  return $items;
+}
+
+/**
+ * Custom ajax callback.
+ *
+ * @param string $hash
+ *   Request hash.
+ * @param string $type
+ *   Widget type.
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_ajax_callback(string $hash, string $type) {
+  if (empty($hash) || empty($type)) {
+    return;
+  }
+
+  if ($type == 'librarylists') {
+    $element = bibliofil_lists_build_librarylists($hash);
+  }
+  elseif ($type == 'suggestions') {
+    $element = bibliofil_lists_build_suggestions($hash);
+  }
+
+  echo render($element);
+  drupal_exit();
+}
+
+/**
+ * Request and build suggestions carousel.
+ *
+ * @param string $hash
+ *   Request hash.
+ *
+ * @return array|null
+ *   Renderable array or empty result.
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_build_suggestions(string $hash) {
+  $opac_url = variable_get('bibliofil_lists_opac_url', '');
+
+  $decoded = base64_decode($hash);
+  $explode = explode(':', $decoded);
+
+  $conf_toplister = $explode[0] ?? '';
+  $conf_ants = $explode[1] ?? '';
+  $conf_ante = $explode[2] ?? '';
+  $conf_instans = $explode[3] ?? '';
+  $conf_list_type = $explode[4] ?? '';
+
+  $query_params = [
+    'mode' => 'hentupforslag',
+    'json' => 1,
+    'toplister' => $conf_toplister,
+    'ants' => $conf_ants,
+    'ante' => $conf_ante,
+    'instans' => $conf_instans,
+  ];
+
+  $url = url($opac_url . BIBLIOFIL_LISTS_DYNPATH, ['query' => $query_params]);
+
+  $result = drupal_http_request($url);
+
+  if ($result->code != 200 || $result->headers['content-type'] != 'application/json; charset=utf-8') {
+    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
+    return;
+  }
+
+  $data = drupal_json_decode($result->data);
+
+  if (!empty($conf_list_type) && !empty($data[$conf_list_type])) {
+    $tabs = bibliofil_lists_build_tabs($data[$conf_list_type], $opac_url);
+  }
+  else {
+    $nonempty = array_filter($data, function ($category) {
+      if (is_array($category)) {
+        return $category;
+      }
+    });
+
+    $inlined = [];
+    foreach ($nonempty as $type) {
+      foreach ($type as $t) {
+        $inlined[] = $t;
+      }
+    }
+
+    $tabs = bibliofil_lists_build_tabs($inlined, $opac_url);
+  }
+
+  return $element = [
+    '#theme' => 'ding_tabbed_carousel',
+    '#transition' => 'fade',
+    '#tabs' => $tabs,
+    '#attached' => [
+      'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
+    ],
+  ];
+}
+
+/**
+ * Build tabs array.
+ *
+ * @param array $data
+ *   Array of data returned from the service.
+ * @param string $opac_url
+ *   Configured OPAC service URL.
+ *
+ * @return array
+ *   Renderable array of tabs.
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_build_tabs(array $data, $opac_url): array {
+  $tabs = [];
+  foreach ($data as $key => $item) {
+    $tabs[$key]['#title'] = $item['name'];
+    $tabs[$key]['#theme'] = 'ding_carousel';
+    $tabs[$key]['#placeholders'] = '';
+    $tabs[$key]['#offset'] = 0;
+    $tabs[$key]['#path'] = '#';
+
+    foreach ($item['titler'] as $i) {
+      $tabs[$key]['#items'][] = [
+        '#markup' => theme('bibliofil_lists_item', [
+          'type' => 'suggestions',
+          'opac_url' => $opac_url,
+          'data' => $i,
+        ]),
+      ];
+    }
+  }
+  return $tabs;
+}
+
+/**
+ * Request and build library lists carousel.
+ *
+ * @param string $hash
+ *   Request hash.
+ *
+ * @return array|null
+ *   Renderable array if data and empty array if no data.
+ *
+ * @throws \Exception
+ */
+function bibliofil_lists_build_librarylists(string $hash) {
+  $element = [];
+  $opac_url = variable_get('bibliofil_lists_opac_url', '');
+
+  $decoded = base64_decode($hash);
+  $explode = explode(':', $decoded);
+  $conf_random = $explode[0] ?? '';
+  $conf_instans = $explode[1] ?? '';
+
+  $query_params = [
+    'mode' => 'show',
+    'json' => 1,
+    'showlibrarylist' => 1,
+    'showpatronlist' => 1,
+    'random' => $conf_random,
+    'instans' => $conf_instans,
+  ];
+
+  $url = url($opac_url . BIBLIOFIL_LISTS_WEBLISTERPATH, ['query' => $query_params]);
+
+  $result = drupal_http_request($url);
+
+  if ($result->code != 200 || $result->headers['content-type'] != 'application/json; charset=utf-8') {
+    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
+    return;
+  }
+
+  $data = drupal_json_decode($result->data);
+  if (!empty($data['selectedlibrarylist'])) {
+    $element = [
+      '#theme' => 'ding_carousel',
+      '#attached' => [
+        'js' => [drupal_get_path('module', 'ding_carousel') . '/js/ding_carousel.js'],
+      ],
+    ];
+
+    foreach ($data['selectedlibrarylist']['innhold'] as $datum) {
+      $element['#items'][] = [
+        '#markup' => theme('bibliofil_lists_item', [
+          'type' => 'librarylists',
+          'opac_url' => $opac_url,
+          'data' => $datum,
+        ]),
+      ];
+    }
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function bibliofil_lists_theme($existing, $type, $theme, $path) {
+  return [
+    'bibliofil_lists_item' => [
+      'variables' => [
+        'type' => NULL,
+        'opac_url' => NULL,
+        'data' => NULL,
+      ],
+      'template' => 'templates/bibliofil_lists_item',
+    ],
+  ];
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function bibliofil_lists_preprocess_bibliofil_lists_item(&$variables) {
+  $data = $variables['data'];
+
+  if (empty($data)) {
+    return;
+  }
+
+  switch ($variables['type']) {
+    case 'librarylists':
+      $unify_data = [
+        'id' => $data['tnr'],
+        'cover_src' => $data['bilde'],
+        'title' => $data['tittel'],
+      ];
+      $variables['data'] = $unify_data;
+      break;
+
+    default:
+      $unify_data = [
+        'id' => $data['tnr'],
+        'cover_src' => $data['b'],
+        'title' => $data['t'],
+      ];
+      $variables['data'] = $unify_data;
+      break;
+  }
+}
