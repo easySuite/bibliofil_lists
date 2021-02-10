@@ -32,15 +32,6 @@ function bibliofil_lists_menu() {
     'file path' => drupal_get_path('module', 'system'),
   ];
 
-  $items['admin/config/bibliofil/bibliofil_lists'] = [
-    'title' => 'Bibliofil lists',
-    'description' => 'Bibliofil lists specific settings',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => ['bibliofil_lists_admin_settings_form'],
-    'file' => 'bibliofil_lists.admin.inc',
-    'access arguments' => ['administer site configuration'],
-  ];
-
   $items['bibliofil/%/%'] = [
     'type' => MENU_CALLBACK,
     'page callback' => 'bibliofil_lists_ajax_callback',
@@ -80,6 +71,49 @@ function bibliofil_lists_ajax_callback(string $hash, string $type) {
 }
 
 /**
+ * Extracts OPAC url.
+ *
+ * @param bool $full
+ *   Requested address type.
+ *
+ * @return string
+ *   URL to the OPAC service.
+ */
+function bibliofil_lists_get_opac_url($full = FALSE): string {
+  $opac_url = variable_get('easyopac_redirect_external_opac_url', NULL);
+
+  if (!$full) {
+    $matches = [];
+    preg_match('/(http[s]?:\/\/)?([^\/\s]+\/)(.*)/', $opac_url, $matches);
+    $schema = $matches[1];
+    $base_url = $matches[2];
+    $opac_url = $schema . rtrim($base_url, '/');
+  }
+
+  return $opac_url;
+}
+
+/**
+ * Make request to OPAC service.
+ *
+ * @param string $url
+ *   URL specific for required type of list.
+ *
+ * @return mixed|void
+ *   Response data.
+ */
+function bibliofil_lists_opac_request(string $url) {
+  $result = drupal_http_request($url);
+
+  if ($result->code != 200 || $result->headers['content-type'] != 'application/json; charset=utf-8') {
+    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
+    return;
+  }
+
+  return drupal_json_decode($result->data);
+}
+
+/**
  * Request and build suggestions carousel.
  *
  * @param string $hash
@@ -90,8 +124,9 @@ function bibliofil_lists_ajax_callback(string $hash, string $type) {
  *
  * @throws \Exception
  */
-function bibliofil_lists_build_suggestions(string $hash) {
-  $opac_url = variable_get('bibliofil_lists_opac_url', '');
+function bibliofil_lists_build_suggestions(string $hash): array {
+  $opac_url = bibliofil_lists_get_opac_url();
+  $opac_item_url = bibliofil_lists_get_opac_url(TRUE);
 
   $decoded = base64_decode($hash);
   $explode = explode(':', $decoded);
@@ -112,18 +147,10 @@ function bibliofil_lists_build_suggestions(string $hash) {
   ];
 
   $url = url($opac_url . BIBLIOFIL_LISTS_DYNPATH, ['query' => $query_params]);
-
-  $result = drupal_http_request($url);
-
-  if ($result->code != 200 || $result->headers['content-type'] != 'application/json; charset=utf-8') {
-    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
-    return;
-  }
-
-  $data = drupal_json_decode($result->data);
+  $data = bibliofil_lists_opac_request($url);
 
   if (!empty($conf_list_type) && !empty($data[$conf_list_type])) {
-    $tabs = bibliofil_lists_build_tabs($data[$conf_list_type], $opac_url);
+    $tabs = bibliofil_lists_build_tabs($data[$conf_list_type], $opac_item_url);
   }
   else {
     $nonempty = array_filter($data, function ($category) {
@@ -139,7 +166,7 @@ function bibliofil_lists_build_suggestions(string $hash) {
       }
     }
 
-    $tabs = bibliofil_lists_build_tabs($inlined, $opac_url);
+    $tabs = bibliofil_lists_build_tabs($inlined, $opac_item_url);
   }
 
   return $element = [
@@ -165,7 +192,7 @@ function bibliofil_lists_build_suggestions(string $hash) {
  *
  * @throws \Exception
  */
-function bibliofil_lists_build_tabs(array $data, $opac_url): array {
+function bibliofil_lists_build_tabs(array $data, string $opac_url): array {
   $tabs = [];
   foreach ($data as $key => $item) {
     $tabs[$key]['#title'] = $item['name'];
@@ -198,9 +225,10 @@ function bibliofil_lists_build_tabs(array $data, $opac_url): array {
  *
  * @throws \Exception
  */
-function bibliofil_lists_build_librarylists(string $hash) {
+function bibliofil_lists_build_librarylists(string $hash): array {
   $element = [];
-  $opac_url = variable_get('bibliofil_lists_opac_url', '');
+  $opac_url = bibliofil_lists_get_opac_url();
+  $full_opac_url = bibliofil_lists_get_opac_url(TRUE);
 
   $decoded = base64_decode($hash);
   $explode = explode(':', $decoded);
@@ -217,15 +245,8 @@ function bibliofil_lists_build_librarylists(string $hash) {
   ];
 
   $url = url($opac_url . BIBLIOFIL_LISTS_WEBLISTERPATH, ['query' => $query_params]);
+  $data = bibliofil_lists_opac_request($url);
 
-  $result = drupal_http_request($url);
-
-  if ($result->code != 200 || $result->headers['content-type'] != 'application/json; charset=utf-8') {
-    watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
-    return;
-  }
-
-  $data = drupal_json_decode($result->data);
   if (!empty($data['selectedlibrarylist'])) {
     $element = [
       '#theme' => 'ding_carousel',
@@ -238,7 +259,7 @@ function bibliofil_lists_build_librarylists(string $hash) {
       $element['#items'][] = [
         '#markup' => theme('bibliofil_lists_item', [
           'type' => 'librarylists',
-          'opac_url' => $opac_url,
+          'opac_url' => $full_opac_url,
           'data' => $datum,
         ]),
       ];

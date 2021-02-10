@@ -33,3 +33,10 @@ function bibliofil_lists_uninstall() {
 
   variable_set('ding_ipe_filter_panes_selected', $ipe_enabled_plugins);
 }
+
+/**
+ * Remove unused variable.
+ */
+function bibliofil_lists_update_7001(&$sandbox) {
+  variable_del('bibliofil_lists_opac_url');
+}
