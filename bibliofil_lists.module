@@ -83,11 +83,8 @@ function bibliofil_lists_get_opac_url($full = FALSE): string {
   $opac_url = variable_get('easyopac_redirect_external_opac_url', NULL);
 
   if (!$full) {
-    $matches = [];
-    preg_match('/(http[s]?:\/\/)?([^\/\s]+\/)(.*)/', $opac_url, $matches);
-    $schema = $matches[1];
-    $base_url = $matches[2];
-    $opac_url = $schema . rtrim($base_url, '/');
+    $parsed_url = parse_url($opac_url);
+    $opac_url = $parsed_url['scheme'] . '://' . $parsed_url['host'];
   }
 
   return $opac_url;
