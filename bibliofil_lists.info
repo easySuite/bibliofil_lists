@@ -3,5 +3,6 @@ description = "Provide Bibliofil lists in carousel."
 package = Bibliofil
 dependencies[] = ding_carousel
 dependencies[] = ding_ipe_filter
+dependencies[] = easyopac_redirect
 core = 7.x
 configure = admin/config/bibliofil/bibliofil_lists

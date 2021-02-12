@@ -52,11 +52,6 @@ function bibliofil_lists_suggestions_render($subtype, $conf, $panel_args, $conte
  * Panel configuration form.
  */
 function bibliofil_lists_suggestions_edit_form($form, $form_state) {
-  if (empty(variable_get('bibliofil_lists_opac_url', ''))) {
-    drupal_set_message(t('Module is not configured. Please visit configuration page <a href="@link">admin/config/bibliofil/bibliofil_lists</a>.', ['@link' => url('/admin/config/bibliofil/bibliofil_lists', ['absolute' => TRUE])]), 'warning');
-    return $form;
-  }
-
   $conf = $form_state['conf'];
 
   $options = [
