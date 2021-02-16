@@ -1,0 +1,42 @@
+<?php
+
+/**
+ * @file
+ * Module installation routine.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function bibliofil_lists_install() {
+  $ipe_enabled_plugins = variable_get('ding_ipe_filter_panes_selected', []);
+
+  // Enable bibliofil lists on IPE.
+  $ipe_enabled_plugins['bibliofil_lists_suggestions'] = 'bibliofil_lists_suggestions';
+  $ipe_enabled_plugins['bibliofil_lists_librarylists'] = 'bibliofil_lists_librarylists';
+
+  variable_set('ding_ipe_filter_panes_selected', $ipe_enabled_plugins);
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function bibliofil_lists_uninstall() {
+  // Remove OPAC url variable.
+  variable_del('bibliofil_lists_opac_url');
+
+  // Disable bibliofil lists on IPE.
+  $ipe_enabled_plugins = variable_get('ding_ipe_filter_panes_selected', []);
+
+  unset($ipe_enabled_plugins['bibliofil_lists_suggestions']);
+  unset($ipe_enabled_plugins['bibliofil_lists_librarylists']);
+
+  variable_set('ding_ipe_filter_panes_selected', $ipe_enabled_plugins);
+}
+
+/**
+ * Remove unused variable.
+ */
+function bibliofil_lists_update_7001(&$sandbox) {
+  variable_del('bibliofil_lists_opac_url');
+}
