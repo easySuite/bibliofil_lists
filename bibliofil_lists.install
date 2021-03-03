@@ -28,8 +28,7 @@ function bibliofil_lists_uninstall() {
   // Disable bibliofil lists on IPE.
   $ipe_enabled_plugins = variable_get('ding_ipe_filter_panes_selected', []);
 
-  unset($ipe_enabled_plugins['bibliofil_lists_suggestions']);
-  unset($ipe_enabled_plugins['bibliofil_lists_librarylists']);
+  unset($ipe_enabled_plugins['bibliofil_lists_suggestions'], $ipe_enabled_plugins['bibliofil_lists_librarylists']);
 
   variable_set('ding_ipe_filter_panes_selected', $ipe_enabled_plugins);
 }
