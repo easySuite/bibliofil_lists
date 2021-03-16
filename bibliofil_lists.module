@@ -150,7 +150,7 @@ function bibliofil_lists_build_suggestions(string $hash): array {
     $tabs = bibliofil_lists_build_tabs($data[$conf_list_type], $opac_item_url);
   }
   else {
-    $nonempty = array_filter($data, static function ($category) {
+    $nonempty = array_filter($data, function ($category) {
       if (is_array($category)) {
         return $category;
       }
