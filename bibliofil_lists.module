@@ -102,7 +102,7 @@ function bibliofil_lists_get_opac_url($full = FALSE): string {
 function bibliofil_lists_opac_request(string $url) {
   $result = drupal_http_request($url);
 
-  if ($result->code != 200 || $result->headers['content-type'] != 'application/json; charset=utf-8') {
+  if ($result->code !== 200 || $result->headers['content-type'] !== 'application/json; charset=utf-8') {
     watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
     return;
   }
@@ -166,7 +166,7 @@ function bibliofil_lists_build_suggestions(string $hash): array {
     $tabs = bibliofil_lists_build_tabs($inlined, $opac_item_url);
   }
 
-  return $element = [
+  return [
     '#theme' => 'ding_tabbed_carousel',
     '#transition' => 'fade',
     '#tabs' => $tabs,
@@ -292,23 +292,20 @@ function bibliofil_lists_preprocess_bibliofil_lists_item(&$variables) {
     return;
   }
 
-  switch ($variables['type']) {
-    case 'librarylists':
-      $unify_data = [
-        'id' => $data['tnr'],
-        'cover_src' => $data['bilde'],
-        'title' => $data['tittel'],
-      ];
-      $variables['data'] = $unify_data;
-      break;
-
-    default:
-      $unify_data = [
-        'id' => $data['tnr'],
-        'cover_src' => $data['b'],
-        'title' => $data['t'],
-      ];
-      $variables['data'] = $unify_data;
-      break;
+  if ($variables['type'] === 'librarylists') {
+    $unify_data = [
+      'id' => $data['tnr'],
+      'cover_src' => $data['bilde'],
+      'title' => $data['tittel'],
+    ];
+    $variables['data'] = $unify_data;
+  }
+  else {
+    $unify_data = [
+      'id' => $data['tnr'],
+      'cover_src' => $data['b'],
+      'title' => $data['t'],
+    ];
+    $variables['data'] = $unify_data;
   }
 }
