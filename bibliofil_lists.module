@@ -102,7 +102,7 @@ function bibliofil_lists_get_opac_url($full = FALSE): string {
 function bibliofil_lists_opac_request(string $url) {
   $result = drupal_http_request($url);
 
-  if ($result->code !== 200 || $result->headers['content-type'] !== 'application/json; charset=utf-8') {
+  if ((int) $result->code !== 200 || $result->headers['content-type'] !== 'application/json; charset=utf-8') {
     watchdog('bibliofil_lists', 'There was problem on requesting API.', NULL, WATCHDOG_ERROR);
     return;
   }
