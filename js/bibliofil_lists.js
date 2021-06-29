@@ -26,7 +26,10 @@
           }
         );
       });
+
+      if ($('.carousel-tabs .carousel-select').length && !$('div#select-inner select').length) {
+        $('select.carousel-select').wrap('<div id=select-inner></div>');
+      }
     }
   };
-
 }(jQuery));
