@@ -21,7 +21,7 @@
             if (response) {
               list.replaceWith(response);
               wrapper.slideDown("fast");
-              Drupal.attachBehaviors(context);
+              Drupal.attachBehaviors(wrapper);
             }
           }
         );
