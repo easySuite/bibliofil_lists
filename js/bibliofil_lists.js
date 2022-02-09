@@ -21,12 +21,15 @@
             if (response) {
               list.replaceWith(response);
               wrapper.slideDown("fast");
-              Drupal.attachBehaviors(context);
+              Drupal.attachBehaviors(wrapper);
             }
           }
         );
       });
+
+      if ($('.carousel-tabs .carousel-select').length && !$('div.select-wrapper select').length) {
+        $('select.carousel-select').wrap('<div class=select-wrapper></div>');
+      }
     }
   };
-
 }(jQuery));
