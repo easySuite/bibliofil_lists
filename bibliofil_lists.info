@@ -5,5 +5,5 @@ dependencies[] = ding_carousel
 dependencies[] = ding_ipe_filter
 dependencies[] = easyopac_redirect
 core = 7.x
-version = 7.x-6.2.1
+version = 7.x-6.4.1
 configure = admin/config/bibliofil/bibliofil_lists
